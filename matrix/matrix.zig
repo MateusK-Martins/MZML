@@ -1,25 +1,21 @@
 const std = @import("std");
 
-pub const DimensionMismatch = error{DimensionMismatch};
+pub const DimensionMismatch = error.DimensionMismatch;
 
-pub fn Matrix(comptime rows: usize, comptime columns: usize) type {
+pub fn Matrix(comptime Rows: usize, comptime Columns: usize) type {
     return struct {
-        rows: usize = rows,
-        columns: usize = columns,
-        data: [rows * columns]f32,
+        rows: usize = Rows,
+        columns: usize = Columns,
+        data: [Rows * Columns]f32,
 
-        pub fn Random(self: *@This(), rng: *std.Random, range: [2]f64) void {
+        pub fn Random(self: *@This(), rng: *std.Random, range: [2]f32) void {
             for (&self.data) |*item| {
                 const raw = rng.float(f32);
-                item.* = raw * range[0] - range[1];
+                item.* = range[0] + raw * (range[1] - range[0]);
             }
         }
 
         pub fn Add(self: *const @This(), other: *const @This()) @This() {
-
-            if (self.rows != other.rows or self.columns != other.columns) {
-                @panic("Matrix dimension mismacth in Add()");
-            }
 
             var result = @This(){ 
                 .data = undefined 
@@ -34,10 +30,6 @@ pub fn Matrix(comptime rows: usize, comptime columns: usize) type {
 
         pub fn Sub(self: *const @This(), other: *const @This()) @This() {
 
-            if (self.rows != other.rows or self.columns != other.columns) {
-                @panic("Matrix dimension mismacth in Sub()");
-            }
-
             var result = @This(){ 
                 .data = undefined 
             };
@@ -51,10 +43,6 @@ pub fn Matrix(comptime rows: usize, comptime columns: usize) type {
 
         pub fn Div(self: *const @This(), other: *const @This()) @This() {
 
-            if (self.rows != other.rows or self.columns != other.columns) {
-                @panic("Matrix dimension mismacth in Div()");
-            }
-
             var result = @This(){ 
                 .data = undefined 
             };
@@ -66,10 +54,10 @@ pub fn Matrix(comptime rows: usize, comptime columns: usize) type {
             return result;
         }
 
-        pub fn Mul(self: *const @This(), other: *const @This()) @This() {
+        pub fn Mul(self: *const @This(), comptime LocalColumns: u64, other: *const Matrix(Columns, LocalColumns)) @This() {
 
             if (self.columns != other.rows) {
-                @panic("Matrix rows doesn't match with target columns in Mul()");
+                @panic("Matrix columns doesn't match with target rows in Mul()");
             }
 
             var result = @This(){ 
@@ -99,19 +87,18 @@ pub fn Matrix(comptime rows: usize, comptime columns: usize) type {
                 .data = undefined 
             };
 
-            for (0..self.column) |i| {
-                for (0..self.row) |j| {
-                    result.data[i * self.row + j] = self.data[j * self.columns + i];
+            for (0..self.columns) |i| {
+                for (0..self.rows) |j| {
+                    result.data[i * self.rows + j] = self.data[j * self.columns + i];
                 }
             }
 
             return result;
         }
-
         
         //Safe Functions
 
-        pub fn SAdd(self: *const @This(), other: *const @This()) !@This() {
+        pub fn SAdd(self: *const @This(), comptime LocalRows: u64, comptime LocalColumns: u64, other: *const Matrix(LocalRows, LocalColumns)) !@This() {
 
             if (self.rows != other.rows or self.columns != other.columns) {
                 return DimensionMismatch;
@@ -128,7 +115,7 @@ pub fn Matrix(comptime rows: usize, comptime columns: usize) type {
             return result;
         }
 
-        pub fn SSub(self: *const @This(), other: *const @This()) @This() {
+        pub fn SSub(self: *const @This(), comptime LocalRows: u64, comptime LocalColumns: u64, other: *const Matrix(LocalRows, LocalColumns)) !@This() {
 
             if (self.rows != other.rows or self.columns != other.columns) {
                 return DimensionMismatch;
@@ -145,7 +132,7 @@ pub fn Matrix(comptime rows: usize, comptime columns: usize) type {
             return result;
         }
 
-        pub fn SDiv(self: *const @This(), other: *const @This()) @This() {
+        pub fn SDiv(self: *const @This(), comptime LocalRows: u64, comptime LocalColumns: u64, other: *const Matrix(LocalRows, LocalColumns)) !@This() {
 
             if (self.rows != other.rows or self.columns != other.columns) {
                 return DimensionMismatch;
@@ -162,7 +149,7 @@ pub fn Matrix(comptime rows: usize, comptime columns: usize) type {
             return result;
         }
 
-        pub fn SMul(self: *const @This(), other: *const @This()) @This() {
+        pub fn SMul(self: *const @This(), comptime LocalRows: u64, comptime LocalColumns: u64, other: *const Matrix(LocalRows, LocalColumns)) !@This() {
 
             if (self.columns != other.rows) {
                 return DimensionMismatch;
