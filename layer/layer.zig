@@ -19,8 +19,15 @@ pub fn Layer(comptime InputSize: u64, comptime Neurons: u64) type {
             }
         }
 
-        pub fn forward(self: *const @This(), input: *const m.Matrix(InputSize, 1)) m.Matrix(Neurons, 1) {
+        pub fn Forward(self: *const @This(), input: *const m.Matrix(InputSize, 1)) m.Matrix(Neurons, 1) {
             return self.weights.Mul(1, input).Add(self.bias);
+        }
+
+        // Safe Functions
+
+        pub fn SForward(self: *const @This(), input: *const m.Matrix(InputSize, 1)) !m.Matrix(Neurons, 1) {
+            const r = try self.weights.SMul(InputSize, 1, input);
+            return try r.SAdd(r.rows, 1, self.bias);
         }
     };
 }

@@ -173,23 +173,5 @@ pub fn Matrix(comptime Rows: usize, comptime Columns: usize) type {
 
             return result;
         }
-
-        pub fn STranspose(self: *const @This()) @This() {
-
-            var result = @This(){ 
-                .rows = self.columns,
-                .columns = self.rows,
-                .data = undefined 
-            };
-
-            for (0..self.column) |i| {
-                for (0..self.row) |j| {
-                    result.data[i * self.row + j] = self.data[j * self.columns + i];
-                }
-            }
-
-            return result;
-        }
-
     };
 }
