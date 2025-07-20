@@ -2,11 +2,19 @@ const std = @import("std");
 
 pub const DimensionMismatch = error.DimensionMismatch;
 
-pub fn Matrix(comptime Rows: usize, comptime Columns: usize) type {
+pub fn Matrix(comptime SelfRows: usize, comptime SelfColumns: usize) type {
     return struct {
-        rows: usize = Rows,
-        columns: usize = Columns,
-        data: [Rows * Columns]f32,
+        rows: usize = SelfRows,
+        columns: usize = SelfColumns,
+        data: [SelfRows * SelfColumns]f32,
+
+        pub fn init(rows: usize, columns: usize) @This() {
+            return .{
+                .rows = rows,
+                .columns = columns,
+                .data = undefined,
+            };
+        }
 
         pub fn Random(self: *@This(), rng: *std.Random, range: [2]f32) void {
             for (&self.data) |*item| {
@@ -17,9 +25,7 @@ pub fn Matrix(comptime Rows: usize, comptime Columns: usize) type {
 
         pub fn Add(self: *const @This(), other: *const @This()) @This() {
 
-            var result = @This(){ 
-                .data = undefined 
-            };
+            var result = @This().init(self.rows, self.columns);
 
             for (0..self.rows * self.columns) | i| {
                 result.data[i] = self.data[i] + other.data[i];
@@ -30,9 +36,7 @@ pub fn Matrix(comptime Rows: usize, comptime Columns: usize) type {
 
         pub fn Sub(self: *const @This(), other: *const @This()) @This() {
 
-            var result = @This(){ 
-                .data = undefined 
-            };
+            var result = @This().init(self.rows, self.columns);
 
             for (0..self.rows * self.columns) | i| {
                 result.data[i] = self.data[i] - other.data[i];
@@ -43,9 +47,7 @@ pub fn Matrix(comptime Rows: usize, comptime Columns: usize) type {
 
         pub fn Div(self: *const @This(), other: *const @This()) @This() {
 
-            var result = @This(){ 
-                .data = undefined 
-            };
+            var result = @This().init(self.rows, self.columns);
 
             for (0..self.rows * self.columns) | i| {
                 result.data[i] = self.data[i] / other.data[i];
@@ -54,17 +56,14 @@ pub fn Matrix(comptime Rows: usize, comptime Columns: usize) type {
             return result;
         }
 
-        pub fn Mul(self: *const @This(), comptime LocalColumns: u64, other: *const Matrix(Columns, LocalColumns)) @This() {
+        pub fn Mul(self: *const @This(), comptime OtherColumns: u64, other: *const Matrix(SelfColumns,OtherColumns)) Matrix(SelfRows,OtherColumns) {
 
             if (self.columns != other.rows) {
                 @panic("Matrix columns doesn't match with target rows in Mul()");
             }
 
-            var result = @This(){ 
-                .rows = self.rows,
-                .columns = other.columns,
-                .data = undefined 
-            };
+            const ResultMatrix = Matrix(SelfRows, OtherColumns);
+            var result: ResultMatrix = ResultMatrix.init(SelfRows, OtherColumns);
 
             for (0..self.rows) | i| {
                 for (0..other.columns) |j| {
@@ -79,13 +78,10 @@ pub fn Matrix(comptime Rows: usize, comptime Columns: usize) type {
             return result;
         }
 
-        pub fn Transpose(self: *const @This()) @This() {
+        pub fn Transpose(self: *const @This()) Matrix(SelfColumns, SelfRows) {
 
-            var result = @This(){ 
-                .rows = self.columns,
-                .columns = self.rows,
-                .data = undefined 
-            };
+            const ResultMatrix = Matrix(SelfColumns, SelfRows);
+            var result: ResultMatrix = ResultMatrix.init(SelfColumns, SelfRows);
 
             for (0..self.columns) |i| {
                 for (0..self.rows) |j| {
@@ -98,15 +94,13 @@ pub fn Matrix(comptime Rows: usize, comptime Columns: usize) type {
         
         //Safe Functions
 
-        pub fn SAdd(self: *const @This(), comptime LocalRows: u64, comptime LocalColumns: u64, other: *const Matrix(LocalRows, LocalColumns)) !@This() {
+        pub fn SAdd(self: *const @This(), comptime OtherRows: u64, comptime OtherColumns: u64, other: *const Matrix(OtherRows, OtherColumns)) !@This() {
 
             if (self.rows != other.rows or self.columns != other.columns) {
                 return DimensionMismatch;
             }
 
-            var result = @This(){ 
-                .data = undefined 
-            };
+            var result = @This().init(self.rows, self.columns);
 
             for (0..self.rows * self.columns) | i| {
                 result.data[i] = self.data[i] + other.data[i];
@@ -115,15 +109,13 @@ pub fn Matrix(comptime Rows: usize, comptime Columns: usize) type {
             return result;
         }
 
-        pub fn SSub(self: *const @This(), comptime LocalRows: u64, comptime LocalColumns: u64, other: *const Matrix(LocalRows, LocalColumns)) !@This() {
+        pub fn SSub(self: *const @This(), comptime OtherRows: u64, comptime OtherColumns: u64, other: *const Matrix(OtherRows, OtherColumns)) !@This() {
 
             if (self.rows != other.rows or self.columns != other.columns) {
                 return DimensionMismatch;
             }
 
-            var result = @This(){ 
-                .data = undefined 
-            };
+            var result = @This().init(self.rows, self.columns);
 
             for (0..self.rows * self.columns) | i| {
                 result.data[i] = self.data[i] - other.data[i];
@@ -132,15 +124,13 @@ pub fn Matrix(comptime Rows: usize, comptime Columns: usize) type {
             return result;
         }
 
-        pub fn SDiv(self: *const @This(), comptime LocalRows: u64, comptime LocalColumns: u64, other: *const Matrix(LocalRows, LocalColumns)) !@This() {
+        pub fn SDiv(self: *const @This(), comptime OtherRows: u64, comptime OtherColumns: u64, other: *const Matrix(OtherRows, OtherColumns)) !@This() {
 
             if (self.rows != other.rows or self.columns != other.columns) {
                 return DimensionMismatch;
             }
 
-            var result = @This(){ 
-                .data = undefined 
-            };
+            var result = @This().init(self.rows, self.columns);
 
             for (0..self.rows * self.columns) | i| {
                 result.data[i] = self.data[i] / other.data[i];
@@ -149,17 +139,14 @@ pub fn Matrix(comptime Rows: usize, comptime Columns: usize) type {
             return result;
         }
 
-        pub fn SMul(self: *const @This(), comptime LocalRows: u64, comptime LocalColumns: u64, other: *const Matrix(LocalRows, LocalColumns)) !@This() {
+        pub fn SMul(self: *const @This(), comptime OtherRows: u64, comptime OtherColumns: u64, other: *const Matrix(OtherRows,OtherColumns)) !Matrix(SelfRows,OtherColumns) {
 
             if (self.columns != other.rows) {
                 return DimensionMismatch;
             }
 
-            var result = @This(){ 
-                .rows = self.rows,
-                .columns = other.columns,
-                .data = undefined 
-            };
+            const ResultMatrix = Matrix(SelfRows, OtherColumns);
+            var result: ResultMatrix = ResultMatrix.init(SelfRows, OtherColumns);
 
             for (0..self.rows) | i| {
                 for (0..other.columns) |j| {
