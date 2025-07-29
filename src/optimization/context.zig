@@ -3,12 +3,14 @@ const matrix = @import("../lib.zig").matrix;
 const Activation = @import("activation.zig").Activation;
 const LayerKinds = @import("../lib.zig").layer_kinds;
 
-pub fn Context(comptime Size: u64) type {
+pub fn Context(comptime Size: u64, comptime T: type) type {
     return struct {
+        pub const size: u64 = Size;
         data: matrix.Matrix(Size, 1),
         activation_data: matrix.Matrix(Size, 1),
         activation: Activation(Size, 1),
         layer_kind: LayerKinds,
+        ref: *T,
 
         pub fn init() @This() {
             return .{
@@ -26,6 +28,10 @@ pub fn Context(comptime Size: u64) type {
                 .forward = forward,
                 .backward = backward,
             };
+        }
+
+        pub fn SetLayer(self: *@This(), t: *T) void {
+            self.*.ref = t;
         }
     };
 }

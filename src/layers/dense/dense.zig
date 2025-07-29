@@ -23,6 +23,36 @@ pub fn Dense(comptime InputSize: u64, comptime Neurons: u64) type {
             return self.weights.Mul(1, input).Add(&self.bias);
         }
 
+        pub fn GenerateGrad(
+            self: *const @This(),
+            grad: matrix.Matrix(Neurons, 1),
+            input: *const matrix.Matrix(InputSize, 1),
+        ) struct {
+            grad_weights: matrix.Matrix(Neurons, InputSize),
+            grad_bias: matrix.Matrix(Neurons, 1),
+            delta_input: matrix.Matrix(InputSize, 1),
+        } {
+            const grad_weights = grad.Mul(1, input.Transpose()); 
+            const grad_bias = grad; 
+            const delta_input = self.weights.Transpose().Mul(1, &grad);
+
+            return .{
+                .grad_weights = grad_weights,
+                .grad_bias = grad_bias,
+                .delta_input = delta_input,
+            };
+        }
+
+        pub fn ApplyGradients(
+            self: *@This(),
+            grad_weights: *const matrix.Matrix(Neurons, InputSize),
+            grad_bias: *const matrix.Matrix(Neurons, 1),
+            learning_rate: f32,
+        ) void {
+            self.*.weights = self.weights.Sub(&grad_weights.Scale(learning_rate));
+            self.*.bias = self.bias.Sub(&grad_bias.Scale(learning_rate));
+        }
+
         // Safe Functions
 
         pub fn SIOForward(self: *const @This(), input: *const matrix.Matrix(InputSize, 1)) !matrix.Matrix(Neurons, 1) {

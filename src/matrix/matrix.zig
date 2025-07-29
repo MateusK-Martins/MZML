@@ -78,6 +78,27 @@ pub fn Matrix(comptime SelfRows: usize, comptime SelfColumns: usize) type {
             return result;
         }
 
+        pub fn ElementWise(self: *const @This(), other: *const @This()) @This() {
+
+            var result = @This().init(self.rows, self.columns);
+
+            for (0..self.rows * self.columns) | i| {
+                result.data[i] = self.data[i] * other.data[i];
+            }
+
+            return result;
+        }
+
+        pub fn Scale(self: *const @This(), scalar: f32) @This() {
+            var result = @This().init(self.rows, self.columns);
+
+            for (0..self.rows * self.columns) | i| {
+                result.data[i] = self.data[i] * scalar;
+            }
+
+            return result;
+        }
+
         pub fn Transpose(self: *const @This()) Matrix(SelfColumns, SelfRows) {
 
             const ResultMatrix = Matrix(SelfColumns, SelfRows);
@@ -156,6 +177,21 @@ pub fn Matrix(comptime SelfRows: usize, comptime SelfColumns: usize) type {
                     }
                     result.data[i * result.columns + j] = sum;
                 }
+            }
+
+            return result;
+        }
+
+        pub fn SElementWise(self: *const @This(), other: *const @This()) !@This() {
+            
+            if (self.rows != other.rows or self.columns != other.columns) {
+                return DimensionMismatch;
+            }
+
+            var result = @This().init(self.rows, self.columns);
+
+            for (0..self.rows * self.columns) | i| {
+                result.data[i] = self.data[i] * other.data[i];
             }
 
             return result;
