@@ -53,6 +53,23 @@ pub fn Dense(comptime InputSize: u64, comptime Neurons: u64) type {
             self.*.bias = self.bias.Sub(&grad_bias.Scale(learning_rate));
         }
 
+        pub fn Backwards(
+            self: *const @This(),
+            grad: matrix.Matrix(Neurons, 1),
+            input: *const matrix.Matrix(InputSize, 1),
+            learning_rate: f32,
+        ) matrix.Matrix(InputSize, 1) {
+
+            const grad_weights = grad.Mul(1, input.Transpose()); 
+            const grad_bias = grad; 
+            const delta_input = self.weights.Transpose().Mul(1, &grad);
+
+            self.*.weights = self.weights.Sub(&grad_weights.Scale(learning_rate));
+            self.*.bias = self.bias.Sub(&grad_bias.Scale(learning_rate));
+
+            return delta_input;
+        }
+
         // Safe Functions
 
         pub fn SIOForward(self: *const @This(), input: *const matrix.Matrix(InputSize, 1)) !matrix.Matrix(Neurons, 1) {

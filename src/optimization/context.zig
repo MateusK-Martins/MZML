@@ -14,8 +14,8 @@ pub fn Context(comptime Size: u64, comptime T: type) type {
 
         pub fn init() @This() {
             return .{
-                .activation_data = undefined,
-                .data = undefined,
+                .activation_data = matrix.Matrix(Size, 1).init(),
+                .data = matrix.Matrix(Size, 1).init(),
                 .activation = Activation{
                     .forward = undefined,
                     .backward = undefined

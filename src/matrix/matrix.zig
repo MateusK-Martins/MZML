@@ -8,11 +8,11 @@ pub fn Matrix(comptime SelfRows: usize, comptime SelfColumns: usize) type {
         columns: usize = SelfColumns,
         data: [SelfRows * SelfColumns]f32,
 
-        pub fn init(rows: usize, columns: usize) @This() {
+        pub fn init() @This() {
             return .{
-                .rows = rows,
-                .columns = columns,
-                .data = undefined,
+                .rows = SelfRows,
+                .columns = SelfColumns,
+                .data = [_]f32{0} ** (SelfRows * SelfColumns),
             };
         }
 
