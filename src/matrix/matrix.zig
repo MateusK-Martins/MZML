@@ -1,197 +1,303 @@
 const std = @import("std");
 
-pub const DimensionMismatch = error.DimensionMismatch;
+pub const Mode = enum {
+    Inplace,
+    InplaceChain,
+    Copy,
+    InplaceCopy,
+};
 
-pub fn Matrix(comptime SelfRows: usize, comptime SelfColumns: usize) type {
+pub fn Matrix(comptime Rows: usize, comptime Columns: usize) type {
     return struct {
-        rows: usize = SelfRows,
-        columns: usize = SelfColumns,
+        pub const SelfRows = Rows;
+        pub const SelfColumns = Columns;
         data: [SelfRows * SelfColumns]f32,
 
         pub fn init() @This() {
             return .{
-                .rows = SelfRows,
-                .columns = SelfColumns,
                 .data = [_]f32{0} ** (SelfRows * SelfColumns),
             };
         }
 
-        pub fn Random(self: *@This(), rng: *std.Random, range: [2]f32) void {
-            for (&self.data) |*item| {
-                const raw = rng.float(f32);
-                item.* = range[0] + raw * (range[1] - range[0]);
+        pub fn Random(
+            self: *@This(), 
+            comptime mode: Mode,
+            rng: *std.Random, 
+            range: [2]f32
+        ) switch (mode) {
+                .Inplace => void,
+                .InplaceChain => *@This(),
+                .Copy => @This(),
+                .InplaceCopy => @This(),
+        }   {
+
+            if (mode == .Inplace or mode == .InplaceCopy or mode == .InplaceChain) {
+                for (&self.data) |*item| {
+                    const raw = rng.float(f32);
+                    item.* = range[0] + raw * (range[1] - range[0]);
+                }
+
+                if (mode == .Inplace) {
+                    return;
+                } else if (mode == .InplaceChain) {
+                    return self; 
+                } else {
+                    return self.Copy();
+                }
+            } else {
+                var result = @This().init();
+
+                for (&result.data) |*item| {
+                    const raw = rng.float(f32);
+                    item.* = range[0] + raw * (range[1] - range[0]);
+                }
+                return result;
             }
         }
 
-        pub fn Add(self: *const @This(), other: *const @This()) @This() {
-
-            var result = @This().init(self.rows, self.columns);
-
-            for (0..self.rows * self.columns) | i| {
-                result.data[i] = self.data[i] + other.data[i];
-            }
-
-            return result;
+        pub fn Copy(self: @This()) @This() {
+            return .{
+                .data = self.data
+            };
         }
 
-        pub fn Sub(self: *const @This(), other: *const @This()) @This() {
+        pub fn Add(
+            self: *@This(), 
+            comptime mode: Mode, 
+            other: *const @This()
+        ) switch (mode) {
+                .Inplace => void,
+                .InplaceChain => *@This(),
+                .Copy => @This(),
+                .InplaceCopy => @This(),
+        }   {
 
-            var result = @This().init(self.rows, self.columns);
+            comptime {
+                const OtherType = @typeInfo(@TypeOf(other)).pointer.child;
 
-            for (0..self.rows * self.columns) | i| {
-                result.data[i] = self.data[i] - other.data[i];
+                if (SelfRows != OtherType.SelfRows or SelfColumns != OtherType.SelfColumns) {
+                    @compileError("Dimension mismatch in Add: both matrices must have the same dimensions");
+                }
             }
 
-            return result;
+            if (mode == .Inplace or mode == .InplaceCopy or mode == .InplaceChain) {
+                for (self.data, 0..) | _, i| {
+                    self.data[i] = self.data[i] + other.data[i];
+                }
+
+                if (mode == .Inplace) {
+                    return;
+                } else if (mode == .InplaceChain) {
+                    return self; 
+                } else {
+                    return self.Copy();
+                }
+            } else {
+                var result = @This().init();
+
+                for (result.data, 0..) | _, i| {
+                    result.data[i] = self.data[i] + other.data[i];
+                }
+                return result;
+            }
         }
 
-        pub fn Div(self: *const @This(), other: *const @This()) @This() {
+        pub fn Sub(
+            self: *@This(), 
+            comptime mode: Mode, 
+            other: *const @This()
+        ) switch (mode) {
+                .Inplace => void,
+                .InplaceChain => *@This(),
+                .Copy => @This(),
+                .InplaceCopy => @This(),
+        }   {
 
-            var result = @This().init(self.rows, self.columns);
+            comptime {
+                const OtherType = @typeInfo(@TypeOf(other)).pointer.child;
 
-            for (0..self.rows * self.columns) | i| {
-                result.data[i] = self.data[i] / other.data[i];
+                if (SelfRows != OtherType.SelfRows or SelfColumns != OtherType.SelfColumns) {
+                    @compileError("Dimension mismatch in Add: both matrices must have the same dimensions");
+                }
             }
 
-            return result;
+            if (mode == .Inplace or mode == .InplaceCopy or mode == .InplaceChain) {
+                for (self.data, 0..) | _, i| {
+                    self.data[i] = self.data[i] - other.data[i];
+                }
+
+                if (mode == .Inplace) {
+                    return;
+                } else if (mode == .InplaceChain) {
+                    return self; 
+                } else {
+                    return self.Copy();
+                }
+            } else {
+                var result = @This().init();
+
+                for (result.data, 0..) | _, i| {
+                    result.data[i] = self.data[i] - other.data[i];
+                }
+                return result;
+            }
         }
 
-        pub fn Mul(self: *const @This(), comptime OtherColumns: u64, other: *const Matrix(SelfColumns,OtherColumns)) Matrix(SelfRows,OtherColumns) {
+        pub fn Div(
+            self: *@This(), 
+            comptime mode: Mode, 
+            other: *const @This()
+        ) switch (mode) {
+                .Inplace => void,
+                .InplaceChain => *@This(),
+                .Copy => @This(),
+                .InplaceCopy => @This(),
+        }   {
 
-            if (self.columns != other.rows) {
-                @panic("Matrix columns doesn't match with target rows in Mul()");
+            comptime {
+                const OtherType = @typeInfo(@TypeOf(other)).pointer.child;
+
+                if (SelfRows != OtherType.SelfRows or SelfColumns != OtherType.SelfColumns) {
+                    @compileError("Dimension mismatch in Add: both matrices must have the same dimensions");
+                }
             }
 
-            const ResultMatrix = Matrix(SelfRows, OtherColumns);
-            var result: ResultMatrix = ResultMatrix.init(SelfRows, OtherColumns);
+            if (mode == .Inplace or mode == .InplaceCopy or mode == .InplaceChain) {
+                for (self.data, 0..) | _, i| {
+                    self.data[i] = self.data[i] / other.data[i];
+                }
 
-            for (0..self.rows) | i| {
-                for (0..other.columns) |j| {
+                if (mode == .Inplace) {
+                    return;
+                } else if (mode == .InplaceChain) {
+                    return self; 
+                } else {
+                    return self.Copy();
+                }
+            } else {
+                var result = @This().init();
+
+                for (result.data, 0..) | _, i| {
+                    result.data[i] = self.data[i] / other.data[i];
+                }
+                return result;
+            }
+        }
+
+
+        pub fn Mul(
+            self: *const @This(), 
+            comptime MatType: type,
+            other: *const MatType
+        ) Matrix(SelfRows, MatType.SelfColumns) {
+
+            comptime {
+                if (SelfColumns != MatType.SelfRows) {
+                    @compileError("Dimension mismatch in Mul: Matrix columns doesn't match with target rows");
+                }
+            }
+
+            const ResultMatrix = Matrix(SelfRows, MatType.SelfColumns);
+            var result: ResultMatrix = ResultMatrix.init();
+
+            for (0..SelfRows) | i| {
+                for (0..MatType.SelfColumns) |j| {
                     var sum: f32 = 0.0;
-                    for (0..self.columns) |k| {
-                        sum += self.data[i * self.columns + k] * other.data[k * other.columns + j];
+                    for (0..SelfColumns) |k| {
+                        sum += self.data[i * SelfColumns + k] * other.data[k * MatType.SelfColumns + j];
                     }
-                    result.data[i * result.columns + j] = sum;
+                    result.data[i * MatType.SelfColumns + j] = sum;
                 }
             }
 
             return result;
         }
 
-        pub fn ElementWise(self: *const @This(), other: *const @This()) @This() {
+        pub fn ElementWise(
+            self: *@This(), 
+            comptime mode: Mode, 
+            other: *const @This()
+        ) switch (mode) {
+                .Inplace => void,
+                .InplaceChain => *@This(),
+                .Copy => @This(),
+                .InplaceCopy => @This(),
+        }   {
 
-            var result = @This().init(self.rows, self.columns);
+            comptime {
+                const OtherType = @typeInfo(@TypeOf(other)).pointer.child;
 
-            for (0..self.rows * self.columns) | i| {
-                result.data[i] = self.data[i] * other.data[i];
+                if (SelfRows != OtherType.SelfRows or SelfColumns != OtherType.SelfColumns) {
+                    @compileError("Dimension mismatch in Add: both matrices must have the same dimensions");
+                }
             }
 
-            return result;
-        }
+            if (mode == .Inplace or mode == .InplaceCopy or mode == .InplaceChain) {
+                for (self.data, 0..) | _, i| {
+                    self.data[i] = self.data[i] * other.data[i];
+                }
 
-        pub fn Scale(self: *const @This(), scalar: f32) @This() {
-            var result = @This().init(self.rows, self.columns);
+                if (mode == .Inplace) {
+                    return;
+                } else if (mode == .InplaceChain) {
+                    return self; 
+                } else {
+                    return self.Copy();
+                }
+            } else {
+                var result = @This().init();
 
-            for (0..self.rows * self.columns) | i| {
-                result.data[i] = self.data[i] * scalar;
+                for (result.data, 0..) | _, i| {
+                    result.data[i] = self.data[i] * other.data[i];
+                }
+                return result;
             }
-
-            return result;
         }
 
-        pub fn Transpose(self: *const @This()) Matrix(SelfColumns, SelfRows) {
+        pub fn Scale(
+            self: *@This(), 
+            comptime mode: Mode, 
+            scalar: f32
+        ) switch (mode) {
+                .Inplace => void,
+                .InplaceChain => *@This(),
+                .Copy => @This(),
+                .InplaceCopy => @This(),
+        }   {
+
+            if (mode == .Inplace or mode == .InplaceCopy or mode == .InplaceChain) {
+                for (self.data, 0..) | _, i| {
+                    self.data[i] = self.data[i] * scalar;
+                }
+
+                if (mode == .Inplace) {
+                    return;
+                } else if (mode == .InplaceChain) {
+                    return self; 
+                } else {
+                    return self.Copy();
+                }
+            } else {
+                var result = @This().init();
+
+                for (result.data, 0..) | _, i| {
+                    result.data[i] = self.data[i] * scalar;
+                }
+                return result;
+            }
+        }
+
+        pub fn Transpose(
+            self: *@This(), 
+        ) Matrix(SelfColumns, SelfRows) {
 
             const ResultMatrix = Matrix(SelfColumns, SelfRows);
-            var result: ResultMatrix = ResultMatrix.init(SelfColumns, SelfRows);
+            var result: ResultMatrix = ResultMatrix.init();
 
-            for (0..self.columns) |i| {
-                for (0..self.rows) |j| {
-                    result.data[i * self.rows + j] = self.data[j * self.columns + i];
+            for (0..SelfColumns) |i| {
+                for (0..SelfRows) |j| {
+                    result.data[i * SelfRows + j] = self.data[j * SelfColumns + i];
                 }
-            }
-
-            return result;
-        }
-        
-        //Safe Functions
-
-        pub fn SAdd(self: *const @This(), comptime OtherRows: u64, comptime OtherColumns: u64, other: *const Matrix(OtherRows, OtherColumns)) !@This() {
-
-            if (self.rows != other.rows or self.columns != other.columns) {
-                return DimensionMismatch;
-            }
-
-            var result = @This().init(self.rows, self.columns);
-
-            for (0..self.rows * self.columns) | i| {
-                result.data[i] = self.data[i] + other.data[i];
-            }
-
-            return result;
-        }
-
-        pub fn SSub(self: *const @This(), comptime OtherRows: u64, comptime OtherColumns: u64, other: *const Matrix(OtherRows, OtherColumns)) !@This() {
-
-            if (self.rows != other.rows or self.columns != other.columns) {
-                return DimensionMismatch;
-            }
-
-            var result = @This().init(self.rows, self.columns);
-
-            for (0..self.rows * self.columns) | i| {
-                result.data[i] = self.data[i] - other.data[i];
-            }
-
-            return result;
-        }
-
-        pub fn SDiv(self: *const @This(), comptime OtherRows: u64, comptime OtherColumns: u64, other: *const Matrix(OtherRows, OtherColumns)) !@This() {
-
-            if (self.rows != other.rows or self.columns != other.columns) {
-                return DimensionMismatch;
-            }
-
-            var result = @This().init(self.rows, self.columns);
-
-            for (0..self.rows * self.columns) | i| {
-                result.data[i] = self.data[i] / other.data[i];
-            }
-
-            return result;
-        }
-
-        pub fn SMul(self: *const @This(), comptime OtherRows: u64, comptime OtherColumns: u64, other: *const Matrix(OtherRows,OtherColumns)) !Matrix(SelfRows,OtherColumns) {
-
-            if (self.columns != other.rows) {
-                return DimensionMismatch;
-            }
-
-            const ResultMatrix = Matrix(SelfRows, OtherColumns);
-            var result: ResultMatrix = ResultMatrix.init(SelfRows, OtherColumns);
-
-            for (0..self.rows) | i| {
-                for (0..other.columns) |j| {
-                    var sum: f32 = 0.0;
-                    for (0..self.columns) |k| {
-                        sum += self.data[i * self.columns + k] * other.data[k * other.columns + j];
-                    }
-                    result.data[i * result.columns + j] = sum;
-                }
-            }
-
-            return result;
-        }
-
-        pub fn SElementWise(self: *const @This(), other: *const @This()) !@This() {
-            
-            if (self.rows != other.rows or self.columns != other.columns) {
-                return DimensionMismatch;
-            }
-
-            var result = @This().init(self.rows, self.columns);
-
-            for (0..self.rows * self.columns) | i| {
-                result.data[i] = self.data[i] * other.data[i];
             }
 
             return result;
